@@ -217,12 +217,12 @@ in {
 
   config = mkIf cfg.enable {
 
-    systemd.services.unms = {
+    systemd.services.unms = rec {
       description = "Ubiquiti Network Management System";
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
 
-      environment = {
+      environment = rec {
         HOME = "%t/unms";
         HTTP_PORT = cfg.httpPort;
         HTTPS_PORT = cfg.httpsPort;
@@ -252,12 +252,11 @@ in {
 
       preStart =
         let
-          appDir = "$RUNTIME_DIRECTORY";
-          dataDir = "$STATE_DIRECTORY/data";
-          publicDir = "${appDir}/public";
+          dataDir = "/var/lib/${serviceConfig.StateDirectory}";
+          publicDir = "/run/${serviceConfig.RuntimeDirectory}/public";
 
           dirs = [
-            "$STATE_DIRECTORY/supportinfo"
+            "${dataDir}/supportinfo"
             "${dataDir}/cert"
             "${dataDir}/images"
             "${dataDir}/firmwares"
@@ -269,20 +268,20 @@ in {
           ];
 
           links = [
-            { from = dataDir; to = "${appDir}/data"; }
+            { from = dataDir; to = "/run/${serviceConfig.RuntimeDirectory}/data"; }
             { from = "${dataDir}/images"; to = "${publicDir}/site-images"; }
             { from = "${dataDir}/firmwares"; to = "${publicDir}/firmwares"; }
           ];
 
           createDir = dir: ''
             if [ ! -L "${dir}" ] || [ ! -d "${dir}" ]; then
-              echo "Creating ${dir}""
+              echo "Creating ${dir}"
               mkdir -p "${dir}"
             fi
           '';
 
           linkDir = { from, to }: ''
-            if [ -L "${to}" ] || [ -d "${to} ]; then rm -rf "${to}"; fi
+            if [ -L "${to}" ] || [ -d "${to}" ]; then rm -rf "${to}"; fi
             echo "Linking ${from} -> ${to}"
             ln -s "${from}" "${to}"
           '';
@@ -293,38 +292,31 @@ in {
           '';
 
         in ''
+          env | sort
+
           echo "Populating app runtime"
-          ${pkgs.xorg.lndir}/bin/lndir -silent "${cfg.package}/libexec/unms-server/deps/unms-server" "${appDir}"
+          ${pkgs.xorg.lndir}/bin/lndir -silent "${cfg.package}/libexec/unms-server/deps/unms-server"
 
           ${concatMapStringsSep "\n" createDir dirs}
           ${concatMapStringsSep "\n" linkDir links}
 
           ${waitForHost cfg.postgres "PostgreSQL"}
-
-          # Create postgres database if it does not exist
-          ${pkgs.postgresql}/bin/psql -h '${cfg.postgres.host}' -p '${toString cfg.postgres.port}' '-U '${cfg.postgres.user}' -w -lqt \
-            | cut -d \| -f 1 | grep -qw '${cfg.postgres.db}'
-          if [ $? -ne 0 ]; then
-            echo "Creating UNMS database"
-            ${pkgs.postgresql}/bin/createdb -h '${cfg.postgres.host}' -p '${toString cfg.postgres.port}' '-U '${cfg.postgres.user}' -w \
-              -O '${cfg.postgres.user}' '${cfg.postgres.db}'
-          fi
-
           ${waitForHost cfg.rabbitmq "RabbitMQ"}
           ${waitForHost cfg.redis "Redis"}
 
           # trigger rewrite of Redis AOF file (see https://groups.google.com/forum/#!topic/redis-db/4p9ZvwS0NjQ)
-          ${pkgs.redis}/bin/redis-cli -h '${cfg.redis.host}' -p '${cfg.redis.port}' BGREWRITEAOF
+          ${pkgs.redis}/bin/redis-cli -h '${cfg.redis.host}' -p '${toString cfg.redis.port}' BGREWRITEAOF
         '';
 
       script = ''
-        PATH="${appDir}/node_modules/.bin:$PATH" ${pkgs.nodePackages_10_x.yarn}/bin/yarn start
+        PATH="/run/${serviceConfig.RuntimeDirectory}/node_modules/.bin:$PATH" ${pkgs.nodePackages_10_x.yarn}/bin/yarn start
       '';
 
-      serviceConfig = {
+      serviceConfig = rec {
         DynamicUser = true;
+        RuntimeDirectory = StateDirectory;
+        RuntimeDirectoryPreserve = true;
         StateDirectory = "unms";
-        RuntimeDirectory = "unms";
         WorkingDirectory = "%t/unms";
       };
 
