@@ -75,7 +75,7 @@ in {
       };
 
       netflowPort = mkOption {
-        default = "2205";
+        default = 2205;
         type = types.int;
         description = "
           Netflow port on which to listen.
@@ -222,33 +222,35 @@ in {
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
 
-      environment = rec {
-        HOME = "%t/unms";
-        HTTP_PORT = cfg.httpPort;
-        HTTPS_PORT = cfg.httpsPort;
-        WS_PORT = cfg.wsPort;
-        PUBLIC_HTTP_PORT = cfg.publicHttpPort;
-        PUBLIC_HTTPS_PORT = cfg.publicHttpsPort;
-        PUBLIC_WS_PORT = cfg.publicWsPort;
-        NETFLOW_PORT = cfg.netflowPort;
-        UNMS_NETFLOW_PORT = cfg.netflowPort;
-        UNMS_REDISDB_HOST = cfg.redis.host;
-        UNMS_REDISDB_PORT = cfg.redis.port;
-        UNMS_REDISDB_DB = cfg.redis.db;
-        UNMS_FLUENTD_HOST = cfg.fluentd.host;
-        UNMS_FLUENTD_PORT = cfg.fluentd.port;
-        UNMS_PG_HOST = cfg.postgres.host;
-        UNMS_PG_PORT = cfg.postgres.port;
-        UNMS_PG_USER = cfg.postgres.user;
-        UNMS_PG_PASSWORD = cfg.postgres.password; # TODO
-        UNMS_PG_SCHEMA = cfg.postgres.schema;
-        UNMS_RABBITMQ_HOST = cfg.rabbitmq.host;
-        UNMS_RABBITMQ_PORT = cfg.rabbitmq.port;
-        SECURE_LINK_SECRET = cfg.secureLinkSecret;
-        NODE_ENV = "production";
-      } // mkIf (!cfg.reporting) {
-        SUPPRESS_REPORTING = "1";
-      };
+      environment = mkMerge [
+        {
+          HOME = "%t/unms";
+          HTTP_PORT = toString cfg.httpPort;
+          HTTPS_PORT = toString cfg.httpsPort;
+          WS_PORT = toString cfg.wsPort;
+          PUBLIC_HTTP_PORT = toString cfg.publicHttpPort;
+          PUBLIC_HTTPS_PORT = toString cfg.publicHttpsPort;
+          PUBLIC_WS_PORT = toString cfg.publicWsPort;
+          NETFLOW_PORT = toString cfg.netflowPort;
+          UNMS_NETFLOW_PORT = toString cfg.netflowPort;
+          UNMS_REDISDB_HOST = cfg.redis.host;
+          UNMS_REDISDB_PORT = toString cfg.redis.port;
+          UNMS_REDISDB_DB = toString cfg.redis.db;
+          UNMS_FLUENTD_HOST = cfg.fluentd.host;
+          UNMS_FLUENTD_PORT = toString cfg.fluentd.port;
+          UNMS_PG_HOST = cfg.postgres.host;
+          UNMS_PG_PORT = toString cfg.postgres.port;
+          UNMS_PG_USER = cfg.postgres.user;
+          UNMS_PG_PASSWORD = cfg.postgres.password; # TODO
+          UNMS_PG_SCHEMA = cfg.postgres.schema;
+          UNMS_RABBITMQ_HOST = cfg.rabbitmq.host;
+          UNMS_RABBITMQ_PORT = toString cfg.rabbitmq.port;
+          SECURE_LINK_SECRET = cfg.secureLinkSecret;
+          NODE_ENV = "production";
+        }
+
+        (mkIf (!cfg.reporting) { SUPPRESS_REPORTING = "1"; })
+      ];
 
       preStart =
         let
