@@ -3,6 +3,8 @@
 with pkgs;
 
 let
+  yarn = nodePackages_10_x.yarn;
+
   yarn2nix = builtins.fetchGit {
     url = https://github.com/moretea/yarn2nix.git;
     name = "yarn2nix";
@@ -10,12 +12,10 @@ let
   };
 
 in callPackage ./unms-server.nix {
-  nodejs = nodejs-10_x;
-  nodePackages = nodePackages_10_x;
+  inherit yarn;
 
   yarn2nix = callPackage "${yarn2nix}/default.nix" {
-    inherit pkgs;
+    inherit pkgs yarn;
     nodejs = nodejs-10_x;
-    yarn = nodePackages_10_x.yarn;
   };
 }

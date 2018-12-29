@@ -309,7 +309,7 @@ in {
         '';
 
       script = ''
-        PATH="/run/${serviceConfig.RuntimeDirectory}/node_modules/.bin:$PATH" ${pkgs.nodePackages_10_x.yarn}/bin/yarn start
+        PATH="/run/${serviceConfig.RuntimeDirectory}/node_modules/.bin:$PATH" ${cfg.package}/bin/unms
       '';
 
       serviceConfig = rec {
