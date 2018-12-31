@@ -316,6 +316,7 @@ in {
       '';
 
       serviceConfig = rec {
+        AmbientCapabilities = "CAP_NET_BIND_SERVICE CAP_NET_RAW";
         DynamicUser = true;
         RuntimeDirectory = StateDirectory;
         RuntimeDirectoryPreserve = true;
