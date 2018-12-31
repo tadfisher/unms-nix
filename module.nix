@@ -4,6 +4,7 @@ with lib;
 
 let
   cfg = config.services.unms;
+  unms = pkgs.callPackage ./default.nix {};
 
 in {
   options = {
@@ -11,7 +12,7 @@ in {
       enable = mkEnableOption "Ubiquiti Network Management System";
 
       package = mkOption {
-        default = pkgs.callPackage ./default.nix {};
+        default = unms.unms-server;
         type = types.package;
         description = ''
           UNMS server package to use.

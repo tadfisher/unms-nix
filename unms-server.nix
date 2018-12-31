@@ -1,20 +1,6 @@
-{ stdenv, stdenvNoCC, dockerTools, yarn, yarn2nix, writeTextFile }:
+{ stdenv, stdenvNoCC, fetchurl, dockerTools, nodejs, nodePackages, python, yarn, yarn2nix, writeTextFile, pkgconfig, vips }:
 
 let
-  cfg = rec {
-    httpPort = 80;
-    httpsPort = 443;
-    localNetwork = "192.168.3.1";
-    publicHttpPort = httpPort;
-    secureLinkSecret = "g9W6N1auZVTNjsOdyoDxEvNV06GsXSO7JeZiRu4TXusWMxJNmhuu31aUSUhBnUQX9UeWh1x9NnXiTMYD3z9hmI7uqbREw8nh7Xes";
-    unmsHttpPort = 8081;
-    unmsHost = "unms";
-    unmsWsApiPort = 8084;
-    unmsWsPort = 8082;
-    wsPort = 8444;
-    workerProcesses = "auto";
-  };
-
   version = "0.13.2-alpha-2";
   tag = "0.13.2-alpha.2";
 
@@ -33,11 +19,6 @@ let
       shopt -s extglob
       cp -rL mnt/home/app/unms/!(node_modules) $out
       shopt -u extglob
-      cat $out/package.json \
-        | jq --argjson ws '{ "workspaces": [ "packages/*" ] }' '. + $ws' \
-        | jq --argjson bin '{ "bin": { "unms": "index.js" } }' '. + $bin' \
-        | jq '.dependencies = (.dependencies | to_entries | [.[] | select(.value | startswith("file:") | not)] | from_entries)' \
-        | tee $out/package-ws.json
     '';
   };
 
@@ -51,22 +32,60 @@ let
     '';
   };
 
+  nodeHeaders = fetchurl {
+    url = "https://nodejs.org/download/release/v${nodejs.version}/node-v${nodejs.version}-headers.tar.gz";
+    sha256 = "1hicv4yx93v56ajqk1d7al7k7kvd16206l5zq2y0faf8506hlgch";
+  };
+
   unms-server = yarn2nix.mkYarnPackage rec {
-    name = "unms-server-${version}";
     src = unmsServerSrc;
-    packageJSON = "${unmsServerSrc}/package-ws.json";
+    packageJSON = ./package.json;
+    yarnLock = ./yarn.lock;
     yarnFlags = yarn2nix.defaultYarnFlags ++ [ "--production" ];
 
-    workspaceDependencies = stdenv.lib.attrValues (yarn2nix.mkYarnWorkspace {
-      name = "unms-server-ws-deps-${version}";
-      src = unmsServerSrc;
-      packageJSON = "${unmsServerSrc}/package-ws.json";
-      yarnFlags = yarn2nix.defaultYarnFlags ++ [ "--production" ];
-    });
+    pkgConfig = {
+      bcrypt = {
+        buildInputs = [ python nodePackages.node-gyp nodePackages.node-pre-gyp ];
+        postInstall = ''
+          node-pre-gyp configure build --build-from-source --tarball="${nodeHeaders}"
+        '';
+      };
+
+      dtrace-provider = {
+        buildInputs = [ python nodePackages.node-gyp ];
+        postInstall = ''
+          node-gyp rebuild --tarball="${nodeHeaders}"
+        '';
+      };
+
+      heapdump = {
+        buildInputs = [ python nodePackages.node-gyp ];
+        postInstall = ''
+          node-gyp rebuild --tarball="${nodeHeaders}"
+        '';
+      };
+
+      raw-socket = {
+        buildInputs = [ python nodePackages.node-gyp ];
+        postInstall = ''
+          node-gyp rebuild --tarball="${nodeHeaders}";
+        '';
+      };
+
+      sharp = {
+        buildInputs = [ pkgconfig vips python nodePackages.node-gyp ] ++ vips.buildInputs;
+        postInstall = ''
+          node-gyp rebuild --tarball="${nodeHeaders}"
+          node install/dll-copy
+        '';
+      };
+    };
 
     postInstall = ''
       ln -s ${startScript} $out/bin/unms
     '';
   };
 
-in unms-server
+in {
+  inherit unmsServerSrc unms-server;
+}
