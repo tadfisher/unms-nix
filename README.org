@@ -1,0 +1,157 @@
+* UNMS for Nix and NixOS
+
+This repo contains a Nix derivation for the Ubiquiti Network Management System
+server application, which is normally distributed in a Docker image alongside
+many other services.
+
+It also contains a module for easily configuring and running UNMS on a NixOS
+host.
+
+** =unms-server=
+
+There are a number of ways of building =unms-server= using this derivation.
+
+By far the most convenient method is to import directly from this repo in your
+own Nix derivation:
+
+#+BEGIN_SRC nix
+{ pkgs ? import <nixpkgs> {}}:
+
+let
+  unms = pkgs.callPackage (builtins.fetchurl https://github.com/tadfisher/unms-nix/archive/master.tar.gz) {};
+in
+  unms.unms-server
+#+END_SRC
+
+Otherwise, you may clone this repo and build it locally:
+
+#+BEGIN_SRC sh
+git clone https://github.com/tadfisher/unms-nix.git
+cd unms-nix
+nix build -f default.nix
+#+END_SRC
+
+The service itself may then be started via the script at
+="${unms-server}/bin/unms"=.
+
+Unfortunately, UNMS requires some relative directories to be writable, meaning
+it will probably be required to copy or link the =unms-server= application dir
+to a working directory first, then running the start script from that working
+directory. The =xorg.lndir= package can help here:
+
+#+BEGIN_SRC sh
+mkdir unms
+cd unms
+nix run nixpkgs.xorg.lndir -c lndir <path/to/unms-nix>/result/libexec/unms-server/deps/unms-server
+#+END_SRC
+
+UNMS depends on several other services to actually start. These are listed
+below, along with their default connection parameters and environment variables
+to control these parameters.
+
+| Service    | Nix package       | Parameter | Environment variable |     Default |
+|------------+-------------------+-----------+----------------------+-------------|
+|            |                   |           |                      |         <r> |
+| RabbitMQ   | =rabbitmq-server= | host      | =UNMS_RABBITMQ_HOST= | =127.0.0.1= |
+|            |                   | port      | =UNMS_RABBITMQ_PORT= |      =5672= |
+|------------+-------------------+-----------+----------------------+-------------|
+| Redis      | =redis=           | host      | =UNMS_REDISDB_HOST=  | =127.0.0.1= |
+|            |                   | port      | =UNMS_REDISDB_PORT=  |      =6379= |
+|            |                   | db        | =UNMS_REDISDB_DB=    |         =0= |
+|------------+-------------------+-----------+----------------------+-------------|
+| PostgresQL | =postgresql96=    | host      | =UNMS_PG_HOST=       | =127.0.0.1= |
+|            |                   | port      | =UNMS_PG_PORT=       |      =5432= |
+|            |                   | user      | =UNMS_PG_USER=       |  =postgres= |
+|            |                   | password  | =UNMS_PG_PASSWORD=   |             |
+|            |                   | schema    | =UNMS_PG_SCHEMA=     |    =public= |
+
+Additional enivronment variables control other UNMS settings; see =[[file:module.nix][module.nix]]=
+for a somewhat exhaustive list.
+
+See the next section if you run NixOS and don't want to do all of this work.
+
+** =services.unms=
+
+By far the easiest way to get up and running is to import =[[file:module.nix][module.nix]]= into your
+NixOS configuration and configure UNMS in Nix.
+
+1. Add a release tarball as a channel. Run these commands as root if you are
+   importing the module into your system configuration (typically
+   =/etc/nixos/configuration.nix=).
+
+#+BEGIN_SRC sh
+$ nix-channel --add https://github.com/tadfisher/unms-nix/archive/master.tar.gz unms
+$ nix-channel --update
+#+END_SRC
+
+2. Import the UMNS module into your configuration.
+
+#+BEGIN_SRC nix
+{ config, lib, pkgs, ... }:
+
+{
+  require = [ <unms/module.nix> ];
+# imports = [ <unms/module.nix> ]; also works
+}
+#+END_SRC
+
+3. Enable the service.
+
+#+BEGIN_SRC nix
+{ config, lib, pkgs, ... }:
+
+{
+  require = [ <unms/module.nix> ];
+
+  services.unms.enable = true;
+}
+
+#+END_SRC
+
+Here is a complete working example running in a NixOS container:
+
+#+BEGIN_SRC nix
+{ config, lib, pkgs, ... }:
+
+{
+  containers.unms = {
+    autoStart = true;
+
+    config = {
+      require = [ <unms/module.nix> ];
+
+      services.postgresql = {
+        enable = true;
+        package = pkgs.postgresql96;
+        authentication = lib.mkForce ''
+          local all all              trust
+          host  all all 127.0.0.1/32 trust
+          host  all all ::1/128      trust
+        '';
+        initialScript = pkgs.writeText "unms-pg-init" ''
+          CREATE DATABASE unms;
+          GRANT ALL PRIVILEGES ON DATABASE unms TO postgres;
+        '';
+      };
+
+      services.rabbitmq.enable = true;
+      services.redis.enable = true;
+      services.unms.enable = true;
+    };
+  };
+}
+#+END_SRC
+
+Point your browser at the container's IP or hostname and you should see the UNMS
+initial setup page.
+
+** License
+
+Unless otherwise noted, this work is released under the MIT license; see =[[file:COPYING][COPYING]]=
+for details.
+
+The license does *not* apply to the following files, obtained from the UNMS
+Docker image and modified, which are © 2018 Ubiquiti Networks, Inc:
+
+- =[[file:package.json][package.json]]=
+- =[[file:yarn.lock][yarn.lock]]=
