@@ -84,7 +84,7 @@ $ nix-channel --add https://github.com/tadfisher/unms-nix/archive/master.tar.gz 
 $ nix-channel --update
 #+END_SRC
 
-2. Import the UMNS module into your configuration.
+2. [@2] Import the UMNS module into your configuration.
 
 #+BEGIN_SRC nix
 { config, lib, pkgs, ... }:
@@ -95,7 +95,7 @@ $ nix-channel --update
 }
 #+END_SRC
 
-3. Enable the service.
+3. [@3] Enable the service.
 
 #+BEGIN_SRC nix
 { config, lib, pkgs, ... }:
