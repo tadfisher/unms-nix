@@ -1,6 +1,6 @@
 {
   "name": "unms-server",
-  "version": "0.13.2-alpha.2",
+  "version": "0.13.3",
   "description": "UNMS (Ubiquiti network management system) server in Node.js",
   "private": true,
   "main": "index.js",
@@ -119,7 +119,7 @@
     "split": "=1.0.1",
     "ssh2": "=0.6.1",
     "swagger-ui-dist": "=3.14.2",
-    "tar-stream": "=1.6.1",
+    "tar-stream": "=1.6.2",
     "tar.gz": "=1.0.7",
     "text-table": "=0.2.0",
     "through2": "=2.0.3",

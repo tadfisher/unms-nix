@@ -8,12 +8,10 @@ let
 
   nodePackages = nodePackages_10_x;
 
-  yarn = nodePackages_10_x.yarn;
-
   yarn2nix = builtins.fetchGit {
     url = https://github.com/moretea/yarn2nix.git;
     name = "yarn2nix";
-    rev = "780e33a07fd821e09ab5b05223ddb4ca15ac663f";
+    rev = "3cc020e384ce2a439813adb7a0cc772a034d90bb";
   };
 
   server = callPackage ./unms-server.nix {

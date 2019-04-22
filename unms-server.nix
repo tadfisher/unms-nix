@@ -1,13 +1,14 @@
 { stdenv, stdenvNoCC, fetchurl, dockerTools, nodejs, nodePackages, python, yarn, yarn2nix, writeTextFile, pkgconfig, vips }:
 
 let
-  version = "0.13.2-alpha-2";
-  tag = "0.13.2-alpha.2";
+  # nix run nixpkgs.skopeo -c skopeo --override-os linux --override-arch x86_64 inspect docker://docker.io/ubnt/unms:1.0.0-dev.15 | jq -r '.Digest'
+  version = "0.13.3";
+  tag = "0.13.3";
 
   unmsImage = dockerTools.pullImage {
     imageName = "ubnt/unms";
-    imageDigest = "sha256:da6767875750b35790b8eb25272a73d5133340de8a86b3e030d6dafc4c474c36";
-    sha256 = "0lqj61annxlcm9qjaj1qf1ckapzfc0ss9p0706241ppcqy99a17w";
+    imageDigest = "sha256:37b6362f2a7b8d0b9907098211a8d9344d4a698fc651cf641c048a638882cb74";
+    sha256 = "1kh5zsll57115v2605dz06sx28bdkp16yrhww1f4wxffzq2qcph3";
     finalImageTag = tag;
   };
 
@@ -34,7 +35,7 @@ let
 
   nodeHeaders = fetchurl {
     url = "https://nodejs.org/download/release/v${nodejs.version}/node-v${nodejs.version}-headers.tar.gz";
-    sha256 = "1hicv4yx93v56ajqk1d7al7k7kvd16206l5zq2y0faf8506hlgch";
+    sha256 = "0bjnkf6xmpzwzd02x8y56165flnigriazi455azvydi80xlyx5wy";
   };
 
   unms-server = yarn2nix.mkYarnPackage rec {

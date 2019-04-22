@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p nix nodePackages_10_x.yarn
+#! nix-shell -i bash -p nix yarn
 
 set -e
 
@@ -11,7 +11,7 @@ chmod -R +w build
   cd build
   for f in packages/*; do
     pkg=$(basename $f)
-    yarn --offline --ignore-engines --ignore-scripts --ignore-platform remove $pkg
+    yarn --ignore-engines --ignore-scripts --ignore-platform remove $pkg
     yarn --ignore-engines --ignore-scripts --ignore-platform add $pkg
   done
   cp package.json ..
